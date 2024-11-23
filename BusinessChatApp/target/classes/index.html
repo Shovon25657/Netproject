@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Test</title>
+</head>
+<body>
+<h1>WebSocket Test</h1>
+
+<!-- Dynamic Session ID -->
+<label for="sessionId">Session ID:</label>
+<input id="sessionId" type="text" placeholder="Enter session ID..." value="testSession" />
+<button onclick="connectWebSocket()">Connect</button><br><br>
+
+<textarea id="messages" rows="10" cols="50" readonly></textarea><br>
+
+<!-- Text Message Input -->
+<input id="input" type="text" placeholder="Type a message..." />
+<button onclick="sendMessage()">Send Text</button><br><br>
+
+<!-- File Input -->
+<input type="file" id="fileInput" />
+<button onclick="sendFile()">Send File</button><br><br>
+
+<!-- Clear Messages -->
+<button onclick="clearMessages()">Clear Messages</button>
+
+<script>
+    let ws;
+    const messages = document.getElementById("messages");
+
+    // Connect to WebSocket with dynamic session ID
+    function connectWebSocket() {
+        const sessionId = document.getElementById("sessionId").value.trim();
+        if (!sessionId) {
+            alert("Please enter a session ID.");
+            return;
+        }
+
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.close(); // Close the previous connection if open
+        }
+
+        ws = new WebSocket(`ws://localhost:8080/chat/${sessionId}`);
+        ws.onopen = () => {
+            messages.value += `Connected to WebSocket server (Session ID: ${sessionId})\n`;
+        };
+
+        ws.onmessage = (event) => {
+            messages.value += `Server: ${event.data}\n`;
+        };
+
+        ws.onclose = () => {
+            messages.value += "Disconnected from server\n";
+        };
+    }
+
+    // Send a text message
+    function sendMessage() {
+        const input = document.getElementById("input").value.trim();
+        if (!input) {
+            alert("Please type a message before sending.");
+            return;
+        }
+
+        ws.send(input);
+        messages.value += `You: ${input}\n`;
+        document.getElementById("input").value = "";
+    }
+
+    // Send a file
+    function sendFile() {
+        const fileInput = document.getElementById("fileInput").files[0];
+        if (!fileInput) {
+            alert("Please select a file to send.");
+            return;
+        }
+
+        const maxFileSize = 1 * 1024 * 1024; // 1 MB limit
+        if (fileInput.size > maxFileSize) {
+            alert("File size exceeds the 1 MB limit.");
+            return;
+        }
+
+        const reader = new FileReader();
+
+        reader.onload = () => {
+            const base64File = reader.result.split(",")[1]; // Extract Base64 part
+            ws.send(`FILE:${base64File}`); // Send as FILE: message
+            messages.value += `You sent a file (${fileInput.name}).\n`;
+        };
+
+        reader.readAsDataURL(fileInput); // Read the file as Base64
+    }
+
+    // Clear messages in the textarea
+    function clearMessages() {
+        messages.value = "";
+    }
+</script>
+</body>
+</html>
